@@ -9,11 +9,13 @@ import threading
 import sys
 import os
 from math import *
-from old_haversine import distance as old_haversine
+# from old_haversine import distance as old_haversine
 from geo.geo import distance_deg as haversine
 from geo.geo import *
 from getloc import get_location
 from getpass import getpass
+from bottle import *
+import json
 
 #  (c) Copyright 2016 Nathan Krantz-Fire (a.k.a zippynk). Some rights reserved.
 #  https://github.com/zippynk/dronebot
@@ -42,9 +44,23 @@ else:
 #    d = r * c
 #    return d
 
+@route("/update")
+def update():
+    response.content_type = 'application/json'  
+    try:
+        return json.dumps({"lat":bot.drone_current_location[0],"lon":bot.drone_current_location[1],"destinations":bot.destinations,"fraction":bot.a})
+#        return '{{"lat":{0}, "lon":{1}, "next3dests":{{{{"lat":{2}, "lon":{3}, id:0}}, {{"lat":{4}, "lon":{5}, id:1}}, {{"lat":{6}, "lon":{7}, id:2}}}}, "fraction":{8}}}'.format(bot.drone_current_location[0],bot.drone_current_location[1],bot.destinations[0][0] if len(bot.destinations) > 0 else "null",bot.destinations[0][1] if len(bot.destinations) > 0 else "null",bot.destinations[1][0] if len(bot.destinations) > 1 else "null",bot.destinations[1][1] if len(bot.destinations) > 1 else "null",bot.destinations[2][0] if len(bot.destinations) > 2 else "null",bot.destinations[2][1] if len(bot.destinations) > 2 else "null",bot.a)
+    except IndexError:
+        return '{"error":"Index error. Most likely cause: The drone is not ready."}'
+    except:
+        #print(e)
+        return '{"error":"An unexpected error occurred."}'
+
 class DroneBot(IRCBot):
     def on_message(self, message, nickname, channel, is_query):
         if is_query:
+            return
+        if len(message.lower().split()) == 0:
             return
         if "@pbdroneland" in message.lower().split()[0]:
             if nickname in authorized_operators:
@@ -109,9 +125,9 @@ class DroneBot(IRCBot):
                 except IndexError:
                     self.send(channel,"{0}: Invalid arguments.".format(nickname))
                     return
-                try:
+                if arg1 > 0 and arg1 <= len(self.destinations):
                     self.destinations[arg1-1] = None
-                except IndexError:
+                else:
                     self.send(channel,"{0}: No destination with that index.".format(nickname))
                     return
                 self.send(channel,"{0}: Removed.".format(nickname))
@@ -130,7 +146,7 @@ class DroneBot(IRCBot):
             self.drone_starting_location = (40.3502,-74.6522,datetime.now()) if coords == False else (coords[0],coords[1],datetime.now()) # Princeton CS Building
             self.destinations = [] # Format: (lat,long,Dump?)
             self.stationed = True
-
+        self.a = 0
     def auto_time_loop(self, channel):
         while self.alive:
             self.wait(1)
@@ -140,9 +156,10 @@ class DroneBot(IRCBot):
                     self.destinations.pop(0)
                     continue
                 j = 0
-                for i in range(len(self.destinations)):
-                    if self.destinations[i] == None:
+                while j < len(self.destinations):
+                    if self.destinations[j] == None:
                         self.destinations.pop(j)
+                        print("popped")
                     else:
                         j += 1
 
@@ -153,6 +170,7 @@ class DroneBot(IRCBot):
                     conversion_factor = 135./3600. # Miles to hours, hours to seconds
                     a = seconds_elapsed/(lat_long_net_distance/conversion_factor)
                     b = 1-a
+                    self.a = a
                     print((a,b))
                     self.drone_current_location = coordinates_deg(self.drone_starting_location[0],self.destinations[0][0],self.drone_starting_location[1],self.destinations[0][1],a)
                     # self.drone_current_location = (self.drone_starting_location[0]*b+self.destinations[0][0]*a,self.drone_starting_location[1]*b+self.destinations[0][1]*a) # Weighted average formula, legacy, replaced with nickolas360's geo library
@@ -173,6 +191,7 @@ class DroneBot(IRCBot):
                     self.stationed = True
 
 def main():
+    global bot
     bot = DroneBot(debug_print=True)
     bot.setup()
     bot.connect("irc.freenode.net", 6667)
@@ -184,8 +203,8 @@ def main():
 
     # Blocking; will return when disconnected.
     threading.Thread(target=bot.auto_time_loop,args=[main_channels[0]],daemon=False).start()
-    bot.listen()
-    print("Disconnected from server.")
+    threading.Thread(target=bot.listen).start()
+    run(host="0.0.0.0",port="10407",debug=False)
 
 if __name__ == "__main__":
     main()
