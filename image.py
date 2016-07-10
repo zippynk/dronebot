@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # This file ships with dronebot and is meant to be run locally, not on the server.
 
 #  (c) Copyright 2016 Nathan Krantz-Fire (a.k.a zippynk). Some rights reserved.
@@ -7,6 +9,7 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+from __future__ import print_function
 from urllib import request
 import json
 import sys
@@ -21,4 +24,4 @@ def world_map(server):
         return url2
 
 if __name__ == "__main__":
-    print world_map(input("Server? ") if len(sys.argv == 0) else sys.argv[1])
+    print(world_map(input("Server? ") if len(sys.argv) <= 1 else sys.argv[1]))
