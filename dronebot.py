@@ -27,6 +27,8 @@ import json
 
 main_channels = ["#`","##`bots"] # Change this if you are running it
 authorized_operators = ["nkf1"] # Change this if you are running it
+code = "pb" # Change this if you are running multiple dronebots in the same room, it preceeds the nick and all commands
+port = 10407 # Change this if you are running multiple dronebots on the same machine, it controls the port for the web API
 
 if len(sys.argv) > 2:
     coords = [float(sys.argv[1]),float(sys.argv[2])]
@@ -48,7 +50,7 @@ else:
 def update():
     response.content_type = 'application/json'  
     try:
-        return json.dumps({"lat":bot.drone_current_location[0],"lon":bot.drone_current_location[1],"destinations":bot.destinations,"fraction":bot.a})
+        return json.dumps({"lat":bot.drone_current_location[0],"lon":bot.drone_current_location[1],"destinations":bot.destinations,"fraction":bot.a,"startloc":bot.drone_starting_location[0:2]})
 #        return '{{"lat":{0}, "lon":{1}, "next3dests":{{{{"lat":{2}, "lon":{3}, id:0}}, {{"lat":{4}, "lon":{5}, id:1}}, {{"lat":{6}, "lon":{7}, id:2}}}}, "fraction":{8}}}'.format(bot.drone_current_location[0],bot.drone_current_location[1],bot.destinations[0][0] if len(bot.destinations) > 0 else "null",bot.destinations[0][1] if len(bot.destinations) > 0 else "null",bot.destinations[1][0] if len(bot.destinations) > 1 else "null",bot.destinations[1][1] if len(bot.destinations) > 1 else "null",bot.destinations[2][0] if len(bot.destinations) > 2 else "null",bot.destinations[2][1] if len(bot.destinations) > 2 else "null",bot.a)
     except IndexError:
         return '{"error":"Index error. Most likely cause: The drone is not ready."}'
@@ -62,7 +64,7 @@ class DroneBot(IRCBot):
             return
         if len(message.lower().split()) == 0:
             return
-        if "@pbdroneland" in message.lower().split()[0]:
+        if "@"+self.code+"droneland" in message.lower().split()[0]:
             if nickname in authorized_operators:
                 for i in main_channels:
                     self.send(i,"Landing.")
@@ -72,11 +74,11 @@ class DroneBot(IRCBot):
                 exit(0)
             else:
                 self.send(channel, "{0}: You are not allowed to perform that operation.".format(nickname))
-        if "@pbdronelocation" in message.lower().split()[0]:
+        if "@"+self.code+"dronelocation" in message.lower().split()[0]:
             latit = self.drone_current_location[0]
             longit = self.drone_current_location[1]
             self.send(channel,"{0}: The drone is currently located at {1},{2} ({3}).".format(nickname,latit,longit,get_location(latit,longit))) if get_location(latit,longit) != False else "{0}: The drone is currently located at {1},{2}.".format(nickname,latit,longit)
-        if "@pbdronequeue" in message.lower().split()[0]: 
+        if "@"+self.code+"dronequeue" in message.lower().split()[0]: 
             if len(self.destinations) > 0:
                 self.send(channel,"Drone Queue  (pinging {0})".format(nickname))
                 self.send(channel, "|Destination #   |Latitude Coordinate    |Longitude Coordinate   |Estimated Time of Arrival   |Action on Arrival   |")
@@ -94,7 +96,7 @@ class DroneBot(IRCBot):
                     self.send(channel, "|" + str(j+1) + " "*(16-len(str(j+1))) + "|" + str(i[0]) + " "*(23-len(str(i[0]))) + "|" + str(i[1]) + " "*(23-len(str(i[1]))) + "|" + str(theoreticalCurrentTime+timedelta(0,lat_long_net_distance/conversion_factor)) + " "*(28-len(str(self.drone_starting_location[2]+timedelta(0,lat_long_net_distance/conversion_factor)))) + "|" + ("Dump                " if i[2] else "Continue            ") + "|")
                     j += 1
                     theoreticalCurrentTime += timedelta(0,lat_long_net_distance/conversion_factor)
-        if "@pbdqueuecontrol" in message.lower().split()[0] and len(message.lower().split()) > 1:
+        if "@"+self.code+"dqueuecontrol" in message.lower().split()[0] and len(message.lower().split()) > 1:
             if message.lower().split()[1] == "add":
                 # Attempt to parse arguments.
                 try:
@@ -113,6 +115,8 @@ class DroneBot(IRCBot):
                 if arg1 > 90 or arg1 < -90 or arg2 > 180 or arg2 < -180:
                    self.send(channel,"{0}: Invalid coordinates.".format(nickname))
                    return
+                if len(self.destinations) == 0:
+                    self.drone_starting_location = self.drone_starting_location[0:2] + (datetime.now(),)
                 self.destinations.append((arg1,arg2,arg3,))
                 self.send(channel,"{0}: Added.".format(nickname))
             if message.lower().split()[1] == "remove":
@@ -147,6 +151,8 @@ class DroneBot(IRCBot):
             self.destinations = [] # Format: (lat,long,Dump?)
             self.stationed = True
         self.a = 0
+        global code
+        self.code = code # Change this to run multiple bots in the same room
     def auto_time_loop(self, channel):
         while self.alive:
             self.wait(1)
@@ -197,14 +203,15 @@ def main():
     bot.connect("irc.freenode.net", 6667)
     if "--password" in sys.argv:
         bot.password(getpass("Password? "))
-    bot.register("pbdronebot")
+    bot.register(bot.code + "dronebot")
     for i in main_channels:
         bot.join(i)
 
     # Blocking; will return when disconnected.
     threading.Thread(target=bot.auto_time_loop,args=[main_channels[0]],daemon=False).start()
     threading.Thread(target=bot.listen).start()
-    run(host="0.0.0.0",port="10407",debug=False)
+    global port
+    run(host="0.0.0.0",port=port,debug=False)
 
 if __name__ == "__main__":
     main()
