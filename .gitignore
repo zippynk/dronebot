@@ -1,4 +1,11 @@
 # Byte-compiled / optimized / DLL files
+# -*- coding: utf-8 -*-
+
+# Form implementation generated from reading ui file '../Desktop/pbdronebot_tracker.ui'
+#
+# Created: Sun Jul 10 21:20:05 2016
+#      by: pyside-uic 0.2.15 running on PySide 1.2.1
+#
 __pycache__/
 *.py[cod]
 *$py.class
