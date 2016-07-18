@@ -50,13 +50,26 @@ else:
 def update():
     response.content_type = 'application/json'  
     try:
-        return json.dumps({"lat":bot.drone_current_location[0],"lon":bot.drone_current_location[1],"destinations":bot.destinations,"fraction":bot.a,"startloc":bot.drone_starting_location[0:2]})
+        dests2 = []
+        if len(bot.destinations) > 0:
+            lat_long_net_distance = haversine(bot.drone_starting_location[0],bot.destinations[0][0],bot.drone_starting_location[1],bot.destinations[0][1])
+            conversion_factor = 135./3600 # Miles to hours, hours to seconds
+            dests2.append(bot.destinations[0] + (str(bot.drone_starting_location[2]+timedelta(0,lat_long_net_distance/conversion_factor)),))
+            theoreticalCurrentTime = bot.drone_starting_location[2]+timedelta(0,lat_long_net_distance/conversion_factor)
+            j = 1
+            if len(bot.destinations) > 1:
+                for i in bot.destinations[1:]:
+                    lat_long_net_distance = haversine(bot.destinations[j-1][0],bot.destinations[j][0],bot.destinations[j-1][1],bot.destinations[j][1])
+                    dests2.append(bot.destinations[j] + (str(theoreticalCurrentTime+timedelta(0,lat_long_net_distance/conversion_factor)),))
+                    j += 1
+                    theoreticalCurrentTime += timedelta(0,lat_long_net_distance/conversion_factor)
+        return json.dumps({"lat":bot.drone_current_location[0],"lon":bot.drone_current_location[1],"destinations":dests2,"fraction":bot.a,"startloc":bot.drone_starting_location[0:2]})
 #        return '{{"lat":{0}, "lon":{1}, "next3dests":{{{{"lat":{2}, "lon":{3}, id:0}}, {{"lat":{4}, "lon":{5}, id:1}}, {{"lat":{6}, "lon":{7}, id:2}}}}, "fraction":{8}}}'.format(bot.drone_current_location[0],bot.drone_current_location[1],bot.destinations[0][0] if len(bot.destinations) > 0 else "null",bot.destinations[0][1] if len(bot.destinations) > 0 else "null",bot.destinations[1][0] if len(bot.destinations) > 1 else "null",bot.destinations[1][1] if len(bot.destinations) > 1 else "null",bot.destinations[2][0] if len(bot.destinations) > 2 else "null",bot.destinations[2][1] if len(bot.destinations) > 2 else "null",bot.a)
     except IndexError:
         return '{"error":"Index error. Most likely cause: The drone is not ready."}'
-    except:
+    #except:
         #print(e)
-        return '{"error":"An unexpected error occurred."}'
+    #    return '{"error":"An unexpected error occurred."}'
 
 class DroneBot(IRCBot):
     def on_message(self, message, nickname, channel, is_query):
