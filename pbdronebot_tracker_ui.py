@@ -28,7 +28,7 @@ class Ui_pbdronebotTrackerWindow(object):
     def setupUi(self, pbdronebotTrackerWindow, server="localhost"):
         self.server = server
         pbdronebotTrackerWindow.setObjectName("pbdronebotTrackerWindow")
-        pbdronebotTrackerWindow.resize(1440, 900)
+        pbdronebotTrackerWindow.resize(5000,5000)
         self.mainWindow = pbdronebotTrackerWindow
         self.centralwidget = QtGui.QWidget(pbdronebotTrackerWindow)
         self.centralwidget.setObjectName("centralwidget")
