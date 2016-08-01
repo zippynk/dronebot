@@ -29,6 +29,7 @@ class Ui_pbdronebotTrackerWindow(object):
         self.server = server
         pbdronebotTrackerWindow.setObjectName("pbdronebotTrackerWindow")
         pbdronebotTrackerWindow.resize(5000,5000)
+        pbdronebotTrackerWindow.showFullScreen()
         self.mainWindow = pbdronebotTrackerWindow
         self.centralwidget = QtGui.QWidget(pbdronebotTrackerWindow)
         self.centralwidget.setObjectName("centralwidget")
